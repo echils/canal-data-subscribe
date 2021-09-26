@@ -15,11 +15,11 @@ Maven   &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 Spring Boot &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2.0.3.RELEASE  
 
 ## Build Canal Server By Docker
-1、Pull the Canal Server image (now officially 1.1.5)
+1、Pull the canal server image (now officially 1.1.5)
 ````
 docker pull canal/canal-server
 ````
-2、Obtain the default configuration file of Canal. The configuration file of Canal is under **/home/admin/canal-server/conf**. We mount the whole directory to facilitate the maintenance of node instances later, The host mount path is **/data/env/canal** as an example.
+2、Obtain the default configuration file of canal. The configuration file of canal is under **/home/admin/canal-server/conf**. We mount the whole directory to facilitate the maintenance of node instances later, The host mount path is **/data/env/canal** as an example.
 ````
 docker run --name canal-server -p 11111:11111 -d  canal/canal-server:v1.1.4 && docker cp  canal-server:/home/admin/canal-server/conf /data/env/canal && cd /data/env/canal
 ````

@@ -1,20 +1,15 @@
 swagger: "2.0"
 info:
-  version: 2.0-SNAPSHOT
+  version: 1.0-SNAPSHOT
   title: 数据同步服务
-host: api.aseit.cn
-basePath: /
 tags:
-- name: com.github.sync-controller
+- name: sync-controller
   description: 数据同步控制器
-schemes: []
-consumes: []
-produces: []
 paths:
   /subscribe:
     post:
       tags:
-      - com.github.sync-controller
+      - sync-controller
       summary: 新增订阅
       operationId: subscribeUsingPOST
       schemes: []
@@ -57,7 +52,7 @@ paths:
   /subscribe/{subscriptionId}/pause:
     put:
       tags:
-      - com.github.sync-controller
+      - sync-controller
       summary: 暂停订阅
       operationId: pauseUsingPUT
       schemes: []
@@ -99,7 +94,7 @@ paths:
   /subscribe/{subscriptionId}/restart:
     put:
       tags:
-      - com.github.sync-controller
+      - sync-controller
       summary: 开启订阅
       operationId: restartUsingPUT
       schemes: []
@@ -141,7 +136,7 @@ paths:
   /subscribe/{subscriptionId}/stop:
     delete:
       tags:
-      - com.github.sync-controller
+      - sync-controller
       summary: 取消订阅
       operationId: unsubscribeUsingDELETE
       schemes: []
@@ -178,7 +173,7 @@ paths:
   /subscriptions:
     get:
       tags:
-      - com.github.sync-controller
+      - sync-controller
       summary: 查询所有订阅
       operationId: findAllSubscriptionsUsingGET
       schemes: []

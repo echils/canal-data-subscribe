@@ -1,6 +1,5 @@
 package com.github.sync.controller;
 
-
 import com.github.sync.model.ResponseEntity;
 import com.github.sync.model.SubscribeStatus;
 import com.github.sync.model.Subscription;
