@@ -1,0 +1,331 @@
+swagger: "2.0"
+info:
+  version: 2.0-SNAPSHOT
+  title: 数据同步服务
+host: api.aseit.cn
+basePath: /
+tags:
+- name: com.github.sync-controller
+  description: 数据同步控制器
+schemes: []
+consumes: []
+produces: []
+paths:
+  /subscribe:
+    post:
+      tags:
+      - com.github.sync-controller
+      summary: 新增订阅
+      operationId: subscribeUsingPOST
+      schemes: []
+      consumes:
+      - application/json
+      produces:
+      - '*/*'
+      parameters:
+      - in: body
+        name: subscription
+        description: 订阅信息
+        required: true
+        schema:
+          $ref: '#/definitions/Subscription'
+      responses:
+        200:
+          description: OK
+          examples: {}
+          headers: {}
+          schema:
+            $ref: '#/definitions/ResponseEntity'
+        201:
+          description: Created
+          examples: {}
+          headers: {}
+        401:
+          description: Unauthorized
+          examples: {}
+          headers: {}
+        403:
+          description: Forbidden
+          examples: {}
+          headers: {}
+        404:
+          description: Not Found
+          examples: {}
+          headers: {}
+      security: []
+      deprecated: false
+  /subscribe/{subscriptionId}/pause:
+    put:
+      tags:
+      - com.github.sync-controller
+      summary: 暂停订阅
+      operationId: pauseUsingPUT
+      schemes: []
+      consumes:
+      - application/json
+      produces:
+      - '*/*'
+      parameters:
+      - name: subscriptionId
+        in: path
+        description: 订阅唯一标识
+        required: true
+        type: string
+      responses:
+        200:
+          description: OK
+          examples: {}
+          headers: {}
+          schema:
+            $ref: '#/definitions/ResponseEntity'
+        201:
+          description: Created
+          examples: {}
+          headers: {}
+        401:
+          description: Unauthorized
+          examples: {}
+          headers: {}
+        403:
+          description: Forbidden
+          examples: {}
+          headers: {}
+        404:
+          description: Not Found
+          examples: {}
+          headers: {}
+      security: []
+      deprecated: false
+  /subscribe/{subscriptionId}/restart:
+    put:
+      tags:
+      - com.github.sync-controller
+      summary: 开启订阅
+      operationId: restartUsingPUT
+      schemes: []
+      consumes:
+      - application/json
+      produces:
+      - '*/*'
+      parameters:
+      - name: subscriptionId
+        in: path
+        description: 订阅唯一标识
+        required: true
+        type: string
+      responses:
+        200:
+          description: OK
+          examples: {}
+          headers: {}
+          schema:
+            $ref: '#/definitions/ResponseEntity'
+        201:
+          description: Created
+          examples: {}
+          headers: {}
+        401:
+          description: Unauthorized
+          examples: {}
+          headers: {}
+        403:
+          description: Forbidden
+          examples: {}
+          headers: {}
+        404:
+          description: Not Found
+          examples: {}
+          headers: {}
+      security: []
+      deprecated: false
+  /subscribe/{subscriptionId}/stop:
+    delete:
+      tags:
+      - com.github.sync-controller
+      summary: 取消订阅
+      operationId: unsubscribeUsingDELETE
+      schemes: []
+      consumes: []
+      produces:
+      - '*/*'
+      parameters:
+      - name: subscriptionId
+        in: path
+        description: 订阅唯一标识
+        required: true
+        type: string
+      responses:
+        200:
+          description: OK
+          examples: {}
+          headers: {}
+          schema:
+            $ref: '#/definitions/ResponseEntity'
+        204:
+          description: No Content
+          examples: {}
+          headers: {}
+        401:
+          description: Unauthorized
+          examples: {}
+          headers: {}
+        403:
+          description: Forbidden
+          examples: {}
+          headers: {}
+      security: []
+      deprecated: false
+  /subscriptions:
+    get:
+      tags:
+      - com.github.sync-controller
+      summary: 查询所有订阅
+      operationId: findAllSubscriptionsUsingGET
+      schemes: []
+      consumes: []
+      produces:
+      - '*/*'
+      parameters:
+      - name: destination
+        in: query
+        description: 实例名称
+        required: false
+        type: string
+      - name: id
+        in: query
+        description: 唯一标识
+        required: false
+        type: string
+      - name: schema
+        in: query
+        description: 数据库名称
+        required: false
+        type: string
+      - name: status
+        in: query
+        description: 监测状态
+        required: false
+        type: string
+        enum:
+        - NORMAL
+        - PAUSE
+      - name: table
+        in: query
+        description: 表名称
+        required: false
+        type: string
+      responses:
+        200:
+          description: OK
+          examples: {}
+          headers: {}
+          schema:
+            $ref: '#/definitions/ResponseEntity5BList5BSubscription5D5D'
+        401:
+          description: Unauthorized
+          examples: {}
+          headers: {}
+        403:
+          description: Forbidden
+          examples: {}
+          headers: {}
+        404:
+          description: Not Found
+          examples: {}
+          headers: {}
+      security: []
+      deprecated: false
+securityDefinitions: {}
+definitions:
+  ReceiptAddress:
+    type: object
+    discriminator: ""
+    properties:
+      channel:
+        type: string
+        description: ' MQ主题或者API(POST请求，数据结构{@link DataSyncMessage})'
+      host:
+        type: string
+        description: ' 推送服务器地址: MQ服务器或者API服务器'
+      schema:
+        type: string
+        description: ' 目标数据库名称'
+      subscriptionTag:
+        type: string
+        description: ' 用户自定义标签，如果未设置将默认设置为订阅ID'
+      table:
+        type: string
+        description: ' 目标表名称'
+      type:
+        type: string
+        description: ' 推送类型'
+        enum:
+        - KAFKA
+        - HTTP
+    title: ReceiptAddress
+    description: 接收地址
+  ResponseEntity:
+    type: object
+    discriminator: ""
+    properties:
+      code:
+        type: integer
+        format: int32
+        description: ' 状态码'
+      data:
+        type: object
+        description: ' 数据结构'
+      msg:
+        type: string
+        description: ' 描述信息'
+    title: ResponseEntity
+    description: 消息体
+  ResponseEntity5BList5BSubscription5D5D:
+    type: object
+    discriminator: ""
+    properties:
+      code:
+        type: integer
+        format: int32
+        description: ' 状态码'
+      data:
+        type: array
+        description: ' 数据结构'
+        items:
+          $ref: '#/definitions/Subscription'
+      msg:
+        type: string
+        description: ' 描述信息'
+    title: ResponseEntity5BList5BSubscription5D5D
+    description: 消息体
+  Subscription:
+    type: object
+    discriminator: ""
+    properties:
+      createTime:
+        type: string
+        format: date-time
+        description: ' 创建时间'
+      destination:
+        type: string
+        description: ' Canal实例名称'
+      id:
+        type: string
+        description: ' 唯一标识'
+      receiptAddress:
+        description: ' 消息推送地址'
+        $ref: '#/definitions/ReceiptAddress'
+      schema:
+        type: string
+        description: ' 数据库名称'
+      status:
+        type: string
+        description: ' 订阅状态'
+        enum:
+        - NORMAL
+        - PAUSE
+      table:
+        type: string
+        description: ' 表名称'
+    title: Subscription
+    description: 订阅信息

@@ -1,0 +1,34 @@
+{
+  "properties": [
+    {
+      "name": "data.sync.canal.ipv4",
+      "type": "java.lang.String",
+      "description": "Description for data.sync.canal.ipv4."
+    },
+    {
+      "name": "data.sync.canal.port",
+      "type": "java.lang.String",
+      "description": "Description for data.sync.canal.port."
+    },
+    {
+      "name": "data.sync.canal.username",
+      "type": "java.lang.String",
+      "description": "Description for data.sync.canal.username."
+    },
+    {
+      "name": "data.sync.canal.password",
+      "type": "java.lang.String",
+      "description": "Description for data.sync.canal.password."
+    },
+    {
+      "name": "data.sync.canal.destinations",
+      "type": "java.lang.String",
+      "description": "Description for data.sync.canal.destinations."
+    },
+    {
+      "name": "data.sync.canal.batch-size",
+      "type": "java.lang.String",
+      "description": "Description for data.sync.canal.batch-size."
+    }
+  ]
+}
