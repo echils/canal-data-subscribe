@@ -1,6 +1,7 @@
 package com.github.sync.core;
 
 import com.alibaba.otter.canal.client.CanalConnector;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.sync.model.Subscription;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,6 +30,9 @@ public class CanalDataSyncExecutor {
     private CanalProperties canalProperties;
 
     @Autowired
+    private ObjectMapper objectMapper;
+
+    @Autowired
     private List<IDataSyncInfoHandler> dataSyncInfoHandlers = new ArrayList<>();
 
     /**
@@ -50,7 +54,7 @@ public class CanalDataSyncExecutor {
                         canalProperties.getUsername(),
                         canalProperties.getPassword(), destination);
                 destinationTaskMap.put(destination, new DefaultCanalTask(canalConnector,
-                        subscription, dataSyncInfoHandlers, canalProperties.getBatchSize()));
+                        subscription, dataSyncInfoHandlers, objectMapper, canalProperties.getBatchSize()));
                 return;
             }
             destinationTaskMap.get(destination).addSubscription(subscription);

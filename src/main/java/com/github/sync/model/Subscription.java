@@ -23,7 +23,7 @@ public class Subscription {
     /**
      * Canal实例名称
      */
-    private String destination;
+    private String destination = "example";
 
     /**
      * 数据库名称

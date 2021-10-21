@@ -1,6 +1,7 @@
 package com.github.sync.service.impl;
 
 import com.github.sync.core.CanalDataSyncExecutor;
+import com.github.sync.core.CanalProperties;
 import com.github.sync.model.ReceiptAddress;
 import com.github.sync.model.SubscribeStatus;
 import com.github.sync.model.Subscription;
@@ -36,12 +37,20 @@ public class ISyncServiceImpl implements ISyncService {
     @Autowired
     private RedisTemplate<String, Subscription> redisTemplate;
 
+    @Autowired
+    private CanalProperties canalProperties;
+
 
     @Override
     public String subscribe(Subscription subscription) {
         if (subscription.isBlank()) {
             throw new SyncException(messageSource.getMessage(
                     "REQUIRED-PARAMETERS-CANNOT-BE-EMPTY", null, LocaleContextHolder.getLocale()));
+        }
+        String subscribeTarget = subscription.getSchema() + SCHEMA_TABLE_SEPARATOR + subscription.getTable();
+        if (canalProperties.getInternalData().contains(subscribeTarget)) {
+            throw new SyncException(messageSource.getMessage(
+                    "SUBSCRIBE-TARGET-PROTECTED", null, LocaleContextHolder.getLocale()));
         }
         List<Subscription> configuredSubscriptions = findAllSubscriptions(null,
                 subscription.getDestination(), subscription.getSchema(), subscription.getTable(), null);

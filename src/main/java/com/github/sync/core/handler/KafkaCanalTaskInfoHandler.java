@@ -1,10 +1,11 @@
 package com.github.sync.core.handler;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.sync.core.IDataSyncInfoHandler;
+import com.github.sync.model.DataOperation;
 import com.github.sync.model.DataSyncMessage;
 import com.github.sync.model.ReceiptAddress;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.Lists;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
@@ -16,9 +17,8 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 import java.util.Properties;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
-import static com.github.sync.core.CanalDataSyncContext.SCHEMA_TABLE_SEPARATOR;
+import static com.github.sync.service.ISyncService.SCHEMA_TABLE_SEPARATOR;
 
 
 /**
@@ -33,23 +33,28 @@ public class KafkaCanalTaskInfoHandler implements IDataSyncInfoHandler {
     @Autowired
     private ObjectMapper objectMapper;
 
-
     @Override
     public void handle(String schema, String table,
-                       List<String> sqlInfos,
+                       List<DataOperation> dataList,
                        List<ReceiptAddress> receiptAddressList) {
 
-        log.info("Kafka canal task handle sqlInfos: {},receiptAddressList: {}", sqlInfos, receiptAddressList);
+        log.info("Kafka canal task handle dataList: {},receiptAddressList: {}", dataList, receiptAddressList);
         receiptAddressList.forEach(address -> {
             Producer<String, String> kafkaProducer = producerBiFunction.apply(address);
             try {
-                List<String> uniqueSqlInfos = sqlInfos.stream()
-                        .map(sql -> conversion(sql, schema, table, address.getSchema(), address.getTable()))
-                        .collect(Collectors.toList());
-                kafkaProducer.send(new ProducerRecord<>(address.getChannel(),
-                        schema + SCHEMA_TABLE_SEPARATOR + table,
-                        objectMapper.writeValueAsString(DataSyncMessage.newInstance(address.getSubscriptionTag(), uniqueSqlInfos))));
-            } catch (JsonProcessingException ex) {
+                if (dataList.size() > DATA_BATCH_SIZE) {
+                    for (List<DataOperation> dataOperations : Lists.partition(dataList, DATA_BATCH_SIZE)) {
+                        kafkaProducer.send(new ProducerRecord<>(address.getChannel(),
+                                schema + SCHEMA_TABLE_SEPARATOR + table,
+                                objectMapper.writeValueAsString(DataSyncMessage.newInstance(address.getSubscriptionTag(), dataOperations))));
+                    }
+
+                } else {
+                    kafkaProducer.send(new ProducerRecord<>(address.getChannel(),
+                            schema + SCHEMA_TABLE_SEPARATOR + table,
+                            objectMapper.writeValueAsString(DataSyncMessage.newInstance(address.getSubscriptionTag(), dataList))));
+                }
+            } catch (Exception ex) {
                 log.error("Kafka canal task handle error:{}", ex.getMessage());
             }
             kafkaProducer.close();

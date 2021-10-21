@@ -62,4 +62,5 @@ public class CanalApplicationListener implements ApplicationListener<Application
         return Collections.emptyList();
     }
 
+
 }

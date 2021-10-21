@@ -6,6 +6,7 @@ import org.springframework.beans.factory.InitializingBean;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -17,7 +18,7 @@ import java.util.List;
 @Data
 @Slf4j
 @Component
-@ConfigurationProperties(prefix = "data.com.github.sync.canal")
+@ConfigurationProperties(prefix = "data.sync.canal")
 public class CanalProperties implements InitializingBean {
 
     /**
@@ -46,6 +47,11 @@ public class CanalProperties implements InitializingBean {
     private List<String> destinations = Collections.singletonList("example");
 
     /**
+     * 禁止订阅的数据信息: schema.table
+     */
+    private List<String> internalData = new ArrayList<>();
+
+    /**
      * 每次拉去数量最大值,如果小于等于0，默认1000
      */
     private int batchSize = 1000;
@@ -59,6 +65,7 @@ public class CanalProperties implements InitializingBean {
                 ", username='" + "*****" + '\'' +
                 ", password='" + "*****" + '\'' +
                 ", destinations=" + destinations +
+                ", internalData=" + internalData +
                 ", batchSize=" + batchSize +
                 '}';
     }

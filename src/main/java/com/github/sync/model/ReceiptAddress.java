@@ -33,16 +33,6 @@ public class ReceiptAddress {
     private IDataSyncInfoHandler.HandlerType type;
 
     /**
-     * 目标数据库名称
-     */
-    private String schema;
-
-    /**
-     * 目标表名称
-     */
-    private String table;
-
-    /**
      * 用户自定义标签，如果未设置将默认设置为订阅ID
      */
     private String subscriptionTag;
@@ -55,14 +45,12 @@ public class ReceiptAddress {
         ReceiptAddress that = (ReceiptAddress) o;
         return host.equals(that.host) &&
                 channel.equals(that.channel) &&
-                type == that.type &&
-                schema.equals(that.schema) &&
-                table.equals(that.table);
+                type == that.type;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(host, channel, type, schema, table);
+        return Objects.hash(host, channel, type);
     }
 
 }

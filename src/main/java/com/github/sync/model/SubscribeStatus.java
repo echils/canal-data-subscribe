@@ -15,6 +15,11 @@ public enum SubscribeStatus {
     /**
      * 暂停
      */
-    PAUSE
+    PAUSE,
+
+    /**
+     * 已取消
+     */
+    REMOVED
 
 }

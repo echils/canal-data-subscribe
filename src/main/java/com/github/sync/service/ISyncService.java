@@ -14,6 +14,12 @@ public interface ISyncService {
 
 
     /**
+     * 订阅目标分隔符
+     */
+    String SCHEMA_TABLE_SEPARATOR = ".";
+
+
+    /**
      * 新增订阅
      *
      * @param subscription 订阅信息

@@ -3,8 +3,12 @@ package com.github.sync.core;
 import com.alibaba.otter.canal.client.CanalConnector;
 import com.alibaba.otter.canal.protocol.CanalEntry;
 import com.alibaba.otter.canal.protocol.Message;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.sync.model.DataOperation;
 import com.github.sync.model.ReceiptAddress;
 import com.github.sync.model.Subscription;
+import com.github.sync.model.SyncException;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -14,9 +18,11 @@ import org.springframework.util.CollectionUtils;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static com.github.sync.core.CanalDataSyncContext.*;
+import static com.github.sync.service.ISyncService.SCHEMA_TABLE_SEPARATOR;
+
 
 /**
  * 同步任务，一个实例对应一个同步任务
@@ -53,9 +59,24 @@ public class DefaultCanalTask extends Thread {
     private int batchSize;
 
     /**
+     * 定义空变量
+     */
+    private static final String BLANK = "";
+
+    /**
+     * 实例过滤条件分隔符
+     */
+    private static final String SUBSCRIBE_FILTER_SEPARATOR = ",";
+
+    /**
      * 数据同步处理器
      */
     private List<IDataSyncInfoHandler> dataSyncInfoHandlers;
+
+    /**
+     * 映射器
+     */
+    private ObjectMapper objectMapper;
 
     /**
      * 缓存每个表的推送列表
@@ -68,6 +89,7 @@ public class DefaultCanalTask extends Thread {
     public DefaultCanalTask(CanalConnector connector,
                             Subscription subscription,
                             List<IDataSyncInfoHandler> dataSyncInfoHandlers,
+                            ObjectMapper objectMapper,
                             int batchSize) {
 
         this.connector = connector;
@@ -80,6 +102,7 @@ public class DefaultCanalTask extends Thread {
                 Optional.ofNullable(subscribeInfoMap.get(subscribeFilter)).orElse(new ArrayList<>());
         subscriptions.add(subscription);
         subscribeInfoMap.put(subscribeFilter, subscriptions);
+        this.objectMapper = objectMapper;
         this.batchSize = batchSize;
         this.dataSyncInfoHandlers = dataSyncInfoHandlers;
 
@@ -173,13 +196,13 @@ public class DefaultCanalTask extends Thread {
      * @param syncInfo 同步信息
      */
     private void handleSyncInfo(SyncInfo syncInfo) {
-        List<String> sqlList = syncInfo.getSqlList();
+        List<DataOperation> dataList = syncInfo.getDataList();
         syncInfo.getReceiptAddresses().stream().collect(Collectors.groupingBy(ReceiptAddress::getType))
                 .forEach((key, value) -> {
                     Optional<IDataSyncInfoHandler> infoHandlerOptional = dataSyncInfoHandlers.stream()
                             .filter(dataSyncInfoHandler -> dataSyncInfoHandler.match(key)).findFirst();
                     infoHandlerOptional.ifPresent(dataSyncInfoHandler ->
-                            dataSyncInfoHandler.handle(syncInfo.getSchema(), syncInfo.getTable(), sqlList, value));
+                            dataSyncInfoHandler.handle(syncInfo.getSchema(), syncInfo.getTable(), dataList, value));
                 });
     }
 
@@ -232,9 +255,9 @@ public class DefaultCanalTask extends Thread {
         private String table;
 
         /**
-         * SQL
+         * 数据信息
          */
-        private List<String> sqlList = new ArrayList<>();
+        private List<DataOperation> dataList = new ArrayList<>();
 
         /**
          * 推送地址
@@ -266,27 +289,32 @@ public class DefaultCanalTask extends Thread {
                         if (!subscribeInfoMap.containsKey(syncTaskKey)) {
                             continue;
                         }
+                        SyncInfo syncInfo = syncInfoMap.computeIfAbsent(syncTaskKey, key -> {
+                            SyncInfo body = new SyncInfo();
+                            body.setTable(tableName);
+                            body.setSchema(schemaName);
+                            body.getReceiptAddresses().addAll(subscribeInfoMap.get(syncTaskKey)
+                                    .stream().map(Subscription::getReceiptAddress).collect(Collectors.toList()));
+                            return body;
+                        });
+                        List<CanalEntry.Column> columnList = null;
                         CanalEntry.EventType eventType = rowChange.getEventType();
-                        String executeSQL = null;
-                        if (eventType == CanalEntry.EventType.DELETE) {
-                            executeSQL = parseDeleteSql(schemaName, tableName, rowChange);
-                        }
-                        if (eventType == CanalEntry.EventType.INSERT) {
-                            executeSQL = parseInsertSql(schemaName, tableName, rowChange);
-                        }
-                        if (eventType == CanalEntry.EventType.UPDATE) {
-                            executeSQL = parseUpdateSql(schemaName, tableName, rowChange);
-                        }
-                        if (StringUtils.isNotBlank(executeSQL)) {
-                            SyncInfo syncInfo = syncInfoMap.computeIfAbsent(syncTaskKey, key -> {
-                                SyncInfo body = new SyncInfo();
-                                body.setTable(tableName);
-                                body.setSchema(schemaName);
-                                body.getReceiptAddresses().addAll(subscribeInfoMap.get(syncTaskKey)
-                                        .stream().map(Subscription::getReceiptAddress).collect(Collectors.toList()));
-                                return body;
-                            });
-                            syncInfo.getSqlList().add(executeSQL);
+                        List<CanalEntry.RowData> rowDataList = rowChange.getRowDatasList();
+                        for (CanalEntry.RowData rowData : rowDataList) {
+                            //只做增删改操作监听
+                            if (eventType == CanalEntry.EventType.INSERT || eventType == CanalEntry.EventType.UPDATE) {
+                                columnList = rowData.getAfterColumnsList();
+                            } else if (eventType == CanalEntry.EventType.DELETE) {
+                                columnList = rowData.getBeforeColumnsList();
+                            }
+                            if (!CollectionUtils.isEmpty(columnList)) {
+                                syncInfo.getDataList().add(new DataOperation(jsonFunction.apply(columnList
+                                        .stream().collect(Collectors.toMap(
+                                                column -> CanalSyncUtils.camelUnderscoreToCase(column.getName()),
+                                                //枚举类型需要特殊处理，后续如果有新的特殊类型，需进行进一步判断
+                                                column -> column.getMysqlType().contains("enum") ? Integer.parseInt(column.getValue()) - 1 : column.getValue()))),
+                                        DataOperation.OperationType.valueOf(eventType.name())));
+                            }
                         }
                     }
                 }
@@ -307,88 +335,16 @@ public class DefaultCanalTask extends Thread {
         } catch (InterruptedException ignored) {}
     }
 
-
     /**
-     * 解析UpdateSQL
+     * Json函数
      */
-    private String parseUpdateSql(String schemaName, String tableName, CanalEntry.RowChange rowChange) {
-        List<CanalEntry.RowData> rowDataList = rowChange.getRowDatasList();
-        StringBuilder updateSQL = new StringBuilder("update " + filedTagFunction.apply(schemaName)
-                + SCHEMA_TABLE_SEPARATOR + filedTagFunction.apply(tableName) + " set");
-        for (CanalEntry.RowData rowData : rowDataList) {
-            List<CanalEntry.Column> newColumnList = rowData.getAfterColumnsList()
-                    .stream().filter(CanalEntry.Column::getUpdated).collect(Collectors.toList());
-            for (int i = 0; i < newColumnList.size(); i++) {
-                CanalEntry.Column column = newColumnList.get(i);
-                updateSQL.append(" ").append(filedTagFunction.apply(column.getName()))
-                        .append(" = ").append(valueWrapFunction.apply(column.getMysqlType(), column.getValue()));
-                if (i != newColumnList.size() - 1) { updateSQL.append(","); }
-            }
-            updateSQL.append(" where ");
-            List<CanalEntry.Column> primaryKeyColumnList = rowData.getBeforeColumnsList()
-                    .stream().filter(CanalEntry.Column::getIsKey).collect(Collectors.toList());
-            if (CollectionUtils.isEmpty(primaryKeyColumnList)) {
-                log.error("Canal com.github.sync update task scheme:{} table:{} no primary key," +
-                        "There is no basis for synchronization", schemaName, tableName);
-                return null;
-            }
-            for (int i = 0; i < primaryKeyColumnList.size(); i++) {
-                CanalEntry.Column column = primaryKeyColumnList.get(i);
-                updateSQL.append(filedTagFunction.apply(column.getName()))
-                        .append(" = ").append(valueWrapFunction.apply(column.getMysqlType(), column.getValue()));
-                if (i != primaryKeyColumnList.size() - 1) { updateSQL.append(" and "); }
-            }
+    private Function<Object, String> jsonFunction = object -> {
+        try {
+            return objectMapper.writeValueAsString(object);
+        } catch (JsonProcessingException e) {
+            log.error("data convert to json failed:{}", object, e);
+            throw new SyncException("json convert failed");
         }
-        return updateSQL.toString();
-    }
-
-    /**
-     * 解析DeleteSQL
-     */
-    private String parseDeleteSql(String schemaName, String tableName, CanalEntry.RowChange rowChange) {
-        List<CanalEntry.RowData> rowDataList = rowChange.getRowDatasList();
-        StringBuilder deleteSQL = new StringBuilder("delete from " + filedTagFunction.apply(schemaName)
-                + SCHEMA_TABLE_SEPARATOR + filedTagFunction.apply(tableName) + " where ");
-        for (CanalEntry.RowData rowData : rowDataList) {
-            List<CanalEntry.Column> primaryKeyColumnList = rowData.getBeforeColumnsList()
-                    .stream().filter(CanalEntry.Column::getIsKey).collect(Collectors.toList());
-            if (CollectionUtils.isEmpty(primaryKeyColumnList)) {
-                log.error("Canal com.github.sync delete task scheme:{} table:{} no primary key," +
-                        "There is no basis for synchronization", schemaName, tableName);
-                return null;
-            }
-            for (int i = 0; i < primaryKeyColumnList.size(); i++) {
-                CanalEntry.Column column = primaryKeyColumnList.get(i);
-                deleteSQL.append(filedTagFunction.apply(column.getName()))
-                        .append(" = ").append(valueWrapFunction.apply(column.getMysqlType(), column.getValue()));
-                if (i != primaryKeyColumnList.size() - 1) { deleteSQL.append(" and "); }
-            }
-        }
-        return deleteSQL.toString();
-    }
-
-
-    /**
-     * 解析InsertSQL
-     */
-    private String parseInsertSql(String schemaName, String tableName, CanalEntry.RowChange rowChange) {
-        List<CanalEntry.RowData> rowDataList = rowChange.getRowDatasList();
-        StringBuilder insertSQL = new StringBuilder("insert into " + filedTagFunction.apply(schemaName)
-                + SCHEMA_TABLE_SEPARATOR + filedTagFunction.apply(tableName) + " (");
-        for (CanalEntry.RowData rowData : rowDataList) {
-            List<CanalEntry.Column> columnList = rowData.getAfterColumnsList();
-            for (int i = 0; i < columnList.size(); i++) {
-                insertSQL.append(filedTagFunction.apply(columnList.get(i).getName()));
-                if (i != columnList.size() - 1) { insertSQL.append(","); }
-            }
-            insertSQL.append(") VALUES (");
-            for (int i = 0; i < columnList.size(); i++) {
-                insertSQL.append(valueWrapFunction.apply(columnList.get(i).getMysqlType(), columnList.get(i).getValue()));
-                if (i != columnList.size() - 1) { insertSQL.append(","); }
-            }
-        }
-        return insertSQL.append(")").toString();
-    }
-
+    };
 
 }

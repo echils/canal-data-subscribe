@@ -41,19 +41,20 @@ public class DataSyncMessage {
         /**
          * 数据
          */
-        private List<String> sqlInfos;
+        private List<DataOperation> dataList;
 
-        public Meta(String subscriptionTag, List<String> sqlInfos) {
+        public Meta(String subscriptionTag, List<DataOperation> dataList) {
             this.subscriptionTag = subscriptionTag;
-            this.sqlInfos = sqlInfos;
+            this.dataList = dataList;
         }
+
     }
 
-    public static DataSyncMessage newInstance(String subscriptionTag,List<String> sqlInfos) {
+    public static DataSyncMessage newInstance(String subscriptionTag, List<DataOperation> dataList) {
         DataSyncMessage dataSyncMessage = new DataSyncMessage();
         dataSyncMessage.setMessageId(UUID.randomUUID().toString().replace("-", ""));
         dataSyncMessage.setCreateTime(new Date());
-        dataSyncMessage.setData(new Meta(subscriptionTag, sqlInfos));
+        dataSyncMessage.setData(new Meta(subscriptionTag, dataList));
         return dataSyncMessage;
     }
 
